@@ -17,8 +17,8 @@ limitations under the License.
 // Provides access to available Google Container Engine versions in a zone for a given project.
 // https://www.terraform.io/docs/providers/google/d/google_container_engine_versions.html
 data "google_container_engine_versions" "on-prem" {
-  zone    = var.zone
-  project = var.project
+  location = var.zone
+  project  = var.project
 }
 
 // https://www.terraform.io/docs/providers/template/index.html
@@ -115,7 +115,7 @@ resource "google_compute_instance" "container_server" {
   }
 
   service_account {
-    scopes = ["storage-ro"]
+    scopes = ["storage-ro", "compute-rw"]
   }
 }
 
@@ -247,7 +247,7 @@ access_config {
 metadata_startup_script = data.template_file.web_init.rendered
 
 service_account {
-scopes = ["storage-ro"]
+  scopes = ["storage-ro", "compute-rw"]
 }
 
 depends_on = [
