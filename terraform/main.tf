@@ -97,7 +97,7 @@ resource "google_compute_instance" "container_server" {
 
   boot_disk {
     initialize_params {
-      image = "cos-cloud/cos-89-lts"
+      image = "cos-cloud/cos-stable"
     }
   }
 
