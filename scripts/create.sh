@@ -33,7 +33,14 @@ run_terraform() {
 
   (cd "$ROOT/terraform"; terraform init -input=false)
   (cd "$ROOT/terraform"; terraform apply -input=false -auto-approve \
-    -var version="$VERSION")
+    -var ver="$VERSION")
+}
+
+generate_static_ip() {
+    # Check to make sure static IP hasn't already been created, then register it.
+    if [[ $(gcloud compute addresses list | grep 'prime-server') = '' ]]; then
+        gcloud compute addresses create prime-server --global
+    fi
 }
 
 wait_for_cluster() {
@@ -172,6 +179,8 @@ enable_project_api "${PROJECT}" cloudbuild.googleapis.com
 run_build
 
 run_terraform
+
+generate_static_ip
 
 kubectl apply -f "${ROOT}/terraform/manifests/" --namespace default
 
