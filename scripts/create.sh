@@ -38,7 +38,7 @@ run_terraform() {
 
 generate_static_ip() {
     # Check to make sure static IP hasn't already been created, then register it.
-    if [[ $(gcloud compute addresses list | grep 'prime-server') = '' ]]; then
+    if [[ $(gcloud compute addresses list | grep '^NAME:\sprime-server') = '' ]]; then
         gcloud compute addresses create prime-server --global
     fi
 }
