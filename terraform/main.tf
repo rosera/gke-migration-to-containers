@@ -1,5 +1,5 @@
 /*
-Copyright 2018 Google LLC
+Copyright 2022 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@ limitations under the License.
 // Provides access to available Google Container Engine versions in a zone for a given project.
 // https://www.terraform.io/docs/providers/google/d/google_container_engine_versions.html
 data "google_container_engine_versions" "on-prem" {
-  zone    = "${var.zone}"
-  project = "${var.project}"
+  zone    = var.zone
+  project = var.project
 }
 
 // https://www.terraform.io/docs/providers/template/index.html
@@ -78,8 +78,8 @@ data "template_file" "startup_script" {
 EOF
 
   vars {
-    project      = "${var.project}"
-    version      = "${var.version}"
+    project = var.project
+    version = var.version
   }
 }
 
@@ -88,11 +88,11 @@ EOF
 // run the container instead of as the interpreted python code.
 resource "google_compute_instance" "container_server" {
   name         = "cos-vm"
-  machine_type = "${var.machine_type}"
-  zone         = "${var.zone}"
-  project      = "${var.project}"
+  machine_type = var.machine_type
+  zone         = var.zone
+  project      = var.project
 
-  tags          = ["flask-web"]
+  tags = ["flask-web"]
 
   boot_disk {
     initialize_params {
@@ -101,7 +101,7 @@ resource "google_compute_instance" "container_server" {
   }
 
   metadata {
-    user-data = "${data.template_file.startup_script.rendered}"
+    user-data = data.template_file.startup_script.rendered
   }
   //metadata_startup_script = "${data.template_file.startup_script.rendered}"
   network_interface {
@@ -119,13 +119,31 @@ resource "google_compute_instance" "container_server" {
 }
 
 // The Kubernetes Engine cluster used to deploy the application
-// https://www.terraform.io/docs/providers/google/r/container_cluster.html
+# https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/container_cluster
 resource "google_container_cluster" "prime_cluster" {
-  name                = "${var.cluster_name}"
-  zone                = "${var.zone}"
-  project             = "${var.project}"
-  min_master_version  = "${data.google_container_engine_versions.on-prem.latest_master_version}"
-  initial_node_count  = 2
+  name                     = var.cluster_name
+  location                 = var.zone
+  project                  = var.project
+  remove_default_node_pool = true
+  initial_node_count       = 1
+}
+
+resource "google_container_node_pool" "primary_preemptible_nodes" {
+  name       = "my-node-pool"
+  location   = var.zone
+  cluster    = google_container_cluster.prime_cluster.name
+  node_count = 1
+
+  node_config {
+    preemptible  = true
+    machine_type = "e2-standard-2"
+
+    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+    service_account = var.computeSA
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+  }
 }
 
 // Create a deployment manifest with the appropriate values
@@ -168,9 +186,9 @@ data "template_file" "deployment_manifest" {
 EOF
 
   vars {
-    project   = "${var.project}"
-    version   = "${var.version}"
-    replicas  = "${var.replicas}"
+    project  = var.project
+    version  = var.version
+    replicas = var.replicas
   }
 }
 
@@ -178,7 +196,7 @@ EOF
 // https://www.terraform.io/docs/provisioners/null_resource.html
 resource "null_resource" "deployment_manifest" {
   triggers {
-    template = "${data.template_file.deployment_manifest.rendered}"
+    template = data.template_file.deployment_manifest.rendered
   }
 
   provisioner "local-exec" {
@@ -201,35 +219,35 @@ resource "null_resource" "local_config" {
 // prime-server
 //
 resource "google_storage_bucket" "artifact_store" {
-  name          = "${var.project}-vm-artifacts"
-  project       = "${var.project}"
+  name    = "${var.project}-vm-artifacts"
+  project = var.project
   # force_destroy = true
 }
 
 // https://www.terraform.io/docs/providers/google/r/storage_bucket_object.html
 resource "google_storage_bucket_object" "artifact" {
-  name          = "${var.version}/flask-prime.tgz"
-  source        = "../build/flask-prime.tgz"
-  bucket        = "${google_storage_bucket.artifact_store.name}"
+  name   = "${var.version}/flask-prime.tgz"
+  source = "../build/flask-prime.tgz"
+  bucket = google_storage_bucket.artifact_store.name
   // TODO: ignore lifecycle something so old versions don't get deleted
 }
 
 data "template_file" "web_init" {
-  template = "${file("${path.module}/web-init.sh.tmpl")}"
+  template = file("${path.module}/web-init.sh.tmpl")
   vars {
     bucket  = "${var.project}-vm-artifacts"
-    version = "${var.version}"
+    version = var.version
   }
 }
 
 // https://www.terraform.io/docs/providers/google/r/compute_instance.html
 resource "google_compute_instance" "web_server" {
-  project       = "${var.project}"
-  name          = "vm-webserver"
-  machine_type  = "${var.machine_type}"
-  zone          = "${var.zone}"
+  project      = var.project
+  name         = "vm-webserver"
+  machine_type = var.machine_type
+  zone         = var.zone
 
-  tags          = ["flask-web"]
+  tags = ["flask-web"]
 
   boot_disk {
     initialize_params {
@@ -246,7 +264,7 @@ resource "google_compute_instance" "web_server" {
   }
 
   // install pip and flask
-  metadata_startup_script = "${data.template_file.web_init.rendered}"
+  metadata_startup_script = data.template_file.web_init.rendered
 
   service_account {
     scopes = ["storage-ro"]
@@ -262,10 +280,10 @@ resource "google_compute_instance" "web_server" {
 resource "google_compute_firewall" "flask_web" {
   name    = "flask-web"
   network = "default"
-  project = "${var.project}"
+  project = var.project
   allow {
-    protocol  = "tcp"
-    ports     = ["8080"]
+    protocol = "tcp"
+    ports    = ["8080"]
   }
 
   source_ranges = ["0.0.0.0/0"]
