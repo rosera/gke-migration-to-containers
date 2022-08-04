@@ -139,7 +139,6 @@ resource "google_container_node_pool" "primary_preemptible_nodes" {
     machine_type = "e2-standard-2"
 
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
-    service_account = var.computeSA
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
@@ -251,7 +250,7 @@ resource "google_compute_instance" "web_server" {
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-9"
+      image = "debian-cloud/debian-10"
     }
   }
 
