@@ -17,8 +17,8 @@ limitations under the License.
 // Provides access to available Google Container Engine versions in a zone for a given project.
 // https://www.terraform.io/docs/providers/google/d/google_container_engine_versions.html
 data "google_container_engine_versions" "on-prem" {
-  zone    = var.zone
-  project = var.project
+  location = var.zone
+  project  = var.project
 }
 
 // https://www.terraform.io/docs/providers/template/index.html
@@ -77,6 +77,7 @@ data "template_file" "startup_script" {
   - systemctl start flaskservice.service
 EOF
 
+
   vars {
     project = var.project
     version = var.version
@@ -103,6 +104,7 @@ resource "google_compute_instance" "container_server" {
   metadata {
     user-data = data.template_file.startup_script.rendered
   }
+
   //metadata_startup_script = "${data.template_file.startup_script.rendered}"
   network_interface {
     network = "default"
@@ -113,9 +115,8 @@ resource "google_compute_instance" "container_server" {
   }
 
   service_account {
-    scopes = ["storage-ro"]
+    scopes = ["storage-ro", "compute-rw"]
   }
-
 }
 
 // The Kubernetes Engine cluster used to deploy the application
@@ -189,11 +190,13 @@ EOF
     version  = var.version
     replicas = var.replicas
   }
+
 }
 
 // Render the deployment manifest on the local filesystem using a null resource
 // https://www.terraform.io/docs/provisioners/null_resource.html
 resource "null_resource" "deployment_manifest" {
+
   triggers {
     template = data.template_file.deployment_manifest.rendered
   }
@@ -202,16 +205,17 @@ resource "null_resource" "deployment_manifest" {
     command = "echo \"${data.template_file.deployment_manifest.rendered}\" > ${path.module}/manifests/prime-server-deployment.yaml"
   }
 
+
+provisioner "local-exec" {
+command = "echo \"${data.template_file.deployment_manifest.rendered}\" > ${path.module}/manifests/prime-server-deployment.yaml"
+}
 }
 
 resource "null_resource" "local_config" {
-
-  provisioner "local-exec" {
-    command = "gcloud container clusters get-credentials prime-server-cluster --project ${var.project}"
-  }
-  depends_on = [
-    "google_container_cluster.prime_cluster"
-  ]
+provisioner "local-exec" {
+command = "gcloud container clusters get-credentials prime-server-cluster --project ${var.project}"
+}
+depends_on = [google_container_cluster.prime_cluster]
 }
 
 // This bucket will hold the deployment artifact, the tar file containing the
@@ -254,25 +258,27 @@ resource "google_compute_instance" "web_server" {
     }
   }
 
-  network_interface {
-    network = "default"
-    access_config {
-      // leave this block empty to get an automatically generated ephemeral
-      // external IP
-    }
-  }
+network_interface {
+network = "default"
+access_config {
+// leave this block empty to get an automatically generated ephemeral
+// external IP
+}
+}
+
 
   // install pip and flask
   metadata_startup_script = data.template_file.web_init.rendered
 
-  service_account {
-    scopes = ["storage-ro"]
-  }
 
-  depends_on = [
-    "google_storage_bucket.artifact_store",
-    "google_storage_bucket_object.artifact"
-  ]
+service_account {
+  scopes = ["storage-ro", "compute-rw"]
+}
+
+depends_on = [
+google_storage_bucket.artifact_store,
+google_storage_bucket_object.artifact,
+]
 }
 
 // https://www.terraform.io/docs/providers/google/r/compute_firewall.html
@@ -285,6 +291,6 @@ resource "google_compute_firewall" "flask_web" {
     ports    = ["8080"]
   }
 
-  source_ranges = ["0.0.0.0/0"]
-  source_tags   = ["flask-web"]
+source_ranges = ["0.0.0.0/0"]
+source_tags   = ["flask-web"]
 }
