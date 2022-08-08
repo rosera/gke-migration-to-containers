@@ -22,8 +22,13 @@ variable "cluster_name" {
   description = "The Kubernetes Engine cluster name"
   default     = "prime-server-cluster"
 }
+
 variable "machine_type" {
-  default = "e2-micro"
+    default = "e2-micro"
+}
+
+variable "gke_machine_type" {
+    default = "e2-standard-2"
 }
 
 variable "project" {
