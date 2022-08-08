@@ -23,7 +23,7 @@ variable "cluster_name" {
   default     = "prime-server-cluster"
 }
 variable "machine_type" {
-  default = "f1-micro"
+  default = "e2-micro"
 }
 
 variable "project" {
@@ -35,7 +35,7 @@ variable "replicas" {
   default     = "1"
 }
 
-variable "version" {
+variable "ver" {
   type = string
 }
 
