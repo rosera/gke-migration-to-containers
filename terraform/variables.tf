@@ -1,5 +1,5 @@
 /*
-Copyright 2018 Google LLC
+Copyright 2022 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,25 +20,30 @@ limitations under the License.
 
 variable "cluster_name" {
   description = "The Kubernetes Engine cluster name"
-  default = "prime-server-cluster"
+  default     = "prime-server-cluster"
 }
+
 variable "machine_type" {
-  default = "f1-micro"
+    default = "e2-micro"
+}
+
+variable "gke_machine_type" {
+    default = "e2-standard-2"
 }
 
 variable "project" {
-  type = "string"
+  type = string
 }
 
 variable "replicas" {
   description = "Number of prime server replicas to create"
-  default = "1"
+  default     = "1"
 }
 
-variable "version" {
-  type = "string"
+variable "ver" {
+  type = string
 }
 
 variable "zone" {
-  type = "string"
+  type = string
 }
